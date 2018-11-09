@@ -1,5 +1,10 @@
 #!/bin/bash
 
+CXX=g++-6
+PYTHON=python
+
+#MY_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0
+MY_FLAGS=
 
 # check if parallel decoding is enabled: specify PARALLEL NUMTHREADS, e.g. PARALLEL 8
 if [ "$1" == "PARALLEL" ]; then
@@ -20,7 +25,7 @@ fi
 
 
 # get and print TF version
-TF_VERSION=$(python3 -c "import tensorflow as tf ;  print(tf.__version__)")
+TF_VERSION=$($PYTHON -c "import tensorflow as tf ;  print(tf.__version__)")
 echo "Your TF version is $TF_VERSION"
 echo "TF versions 1.3.0, 1.4.0, 1.5.0 and 1.6.0 are tested"
 
@@ -30,9 +35,9 @@ if [ "$TF_VERSION" == "1.3.0" ]; then
 
 	echo "Compiling for TF 1.3.0 now ..."
 
-	TF_INC=$(python3 -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
+	TF_INC=$($PYTHON -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
 
-	g++ -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp -fPIC -D_GLIBCXX_USE_CXX11_ABI=0 $PARALLEL -I$TF_INC 
+	$CXX -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp -fPIC $MY_FLAGS $PARALLEL -I$TF_INC 
 
 
 # compile it for TF1.4
@@ -40,19 +45,19 @@ elif [ "$TF_VERSION" == "1.4.0" ]; then
 
 	echo "Compiling for TF 1.4.0 now ..."
 	
-	TF_INC=$(python3 -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
-	TF_LIB=$(python3 -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
+	TF_INC=$($PYTHON -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
+	TF_LIB=$($PYTHON -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
 
-	g++ -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp -D_GLIBCXX_USE_CXX11_ABI=0 $PARALLEL -fPIC -I$TF_INC -I$TF_INC/external/nsync/public -L$TF_LIB -ltensorflow_framework
+	$CXX -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp $MY_FLAGS $PARALLEL -fPIC -I$TF_INC -I$TF_INC/external/nsync/public -L$TF_LIB -ltensorflow_framework
 
 # all other versions (tested for: TF1.5 and TF1.6)
 else
 	echo "Compiling for TF 1.5.0 or 1.6.0 now ..."
 
-	TF_CFLAGS=( $(python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
-	TF_LFLAGS=( $(python3 -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
+	TF_CFLAGS=( $($PYTHON -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_compile_flags()))') )
+	TF_LFLAGS=( $($PYTHON -c 'import tensorflow as tf; print(" ".join(tf.sysconfig.get_link_flags()))') )
 
 
-	g++ -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp -fPIC ${TF_CFLAGS[@]} ${TF_LFLAGS[@]} -D_GLIBCXX_USE_CXX11_ABI=0 $PARALLEL
+	$CXX -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp -fPIC ${TF_CFLAGS[@]} ${TF_LFLAGS[@]} $MY_FLAGS $PARALLEL
 
 fi

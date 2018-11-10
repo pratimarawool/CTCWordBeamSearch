@@ -32,8 +32,9 @@ int main()
 		const auto data = loader.getNext();
 
 		// decode it
-		const auto res = wordBeamSearch(data.mat, 10, lm, lmType);
-
+		std::shared_ptr<Beam> bestBeam  = wordBeamSearch(data.mat, 10, lm, lmType);
+		const auto res = bestBeam->getText();
+      
 		// show results
 		std::cout << "Sample: " << ctr + 1 << "\n";
 		std::cout << "Result:       \"" << lm->labelToUtf8(res) << "\"\n";

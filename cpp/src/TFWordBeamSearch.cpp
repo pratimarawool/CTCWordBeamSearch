@@ -184,6 +184,9 @@ public:
 	{
 		// input: TxBxC, float32
 		const Tensor& inputTensor = context->input(0);
+    // input: Bx1, uint32
+    const Tensor& seqLen = context->input(1);
+    
 		const auto inputShape = inputTensor.shape();
 		const size_t maxT = inputShape.dim_size(0);
 		const size_t maxB = inputShape.dim_size(1);
@@ -194,6 +197,23 @@ public:
 		{
 			throw std::invalid_argument("the number of characters (chars) plus 1  must equal dimension 2 of the tensor (mat)");
 		}
+
+    if (!TensorShapeUtils::IsVector((*seqLen)->shape())) {
+      throw std::invalid_argument("sequence length is not a vector");
+    }
+
+    if (!(maxB == (*seqLen)->dim_size(0))) {
+      throw std::invalid_argument("length of sequence length is not batch size.  ")
+    }
+
+    auto seqLen_t = (*seqLen)->vec<int32>();
+
+    for (int b = 0; b < maxB; ++b) {
+      if (!(seq_len_t(b) <= maxT)) {
+        throw std::invalid_argument("sequence length value out of bounds");
+      }
+    }
+
 
 		// input tensor
 		const auto inputMapped = inputTensor.tensor<float, 3>();
@@ -225,7 +245,7 @@ public:
 		for(size_t b = 0; b < maxB; ++b)
 		{
 			// wrapper around Tensor
-			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, maxT, maxC);
+			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, seq_len_t(b), maxC);
 
 			// apply decoding algorithm to batch element 
 			const std::shared_ptr<Beam> bestBeam = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);

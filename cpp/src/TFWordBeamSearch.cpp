@@ -170,8 +170,8 @@ public:
 			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, maxT, maxC);
 
 			// apply decoding algorithm to batch element 
-			const std::vector<uint32_t> decoded = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);
-			
+			const std::shared_ptr<Beam> bestBeam = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);
+			const std::vector<uint32_t> decoded = bestBeam->getText();
 			// write to output tensor
 			fillResult(decoded, outputMapped, b, maxT, maxC);
 		}
@@ -228,8 +228,9 @@ public:
 			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, maxT, maxC);
 
 			// apply decoding algorithm to batch element 
-			const std::vector<uint32_t> decoded = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);
-			
+			const std::shared_ptr<Beam> bestBeam = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);
+			const std::vector<uint32_t> decoded = bestBeam->getText();
+			LOG(INFO) << "Best beam score: " << bestBeam->getTotalProb();
 			// write to output tensor
 			fillResult(decoded, outputMapped, b, maxT, maxC);
 		}

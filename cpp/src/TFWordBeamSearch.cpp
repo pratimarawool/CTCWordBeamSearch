@@ -1,5 +1,6 @@
 #include <tensorflow/core/framework/op.h>
 #include <tensorflow/core/framework/op_kernel.h>
+#include <tensorflow/core/framework/shape_inference.h>
 #include <algorithm>
 #include <string>
 #include <cctype>
@@ -12,9 +13,11 @@
 #include "WordBeamSearch.hpp"
 #include "LanguageModel.hpp"
 
+using namespace tensorflow;
 
 REGISTER_OP("WordBeamSearch")
-.Input("mat: float32")
+.Input("mat: float32") // TxBxC
+.Input("seq_len: int32") // Bx1
 .Attr("beamWidth: int")
 .Attr("lmType: string")
 .Attr("lmSmoothing: float")
@@ -22,6 +25,7 @@ REGISTER_OP("WordBeamSearch")
 .Attr("chars: string")
 .Attr("wordChars: string")
 .Output("result: int32")
+.Output("score: float")
 .Doc(
 "Decodes matrix (mat) using a dictionary and language model created from text corpus (corpus). "\
 "The softmax function must be applied in advance to mat. "\
@@ -29,10 +33,23 @@ REGISTER_OP("WordBeamSearch")
 "The characters (wordChars) which can occur in a word are used to create the dictionary and language model from the corpus. "\
 "The LM scoring mode (lmType) must be one of the following four strings (not case-sensitive): 'Words', 'NGrams', 'NGramsForecast', 'NGramsForecastAndSample'. "\
 "Pass strings UTF8 encoded if using special characters. "
-);
+     ) // shape inference adapted from tensorflow CTCGreedyDecoder (Apache License 2.0)
+.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      ::tensorflow::shape_inference::ShapeHandle inputs;
+      ::tensorflow::shape_inference::ShapeHandle sequence_length;
 
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 3, &inputs));
+      TF_RETURN_IF_ERROR(c->WithRank(c->input(1), 1, &sequence_length));
 
-using namespace tensorflow;
+      // Get batch size from inputs and sequence_length.
+      ::tensorflow::shape_inference::DimensionHandle batch_size;
+      TF_RETURN_IF_ERROR(
+          c->Merge(c->Dim(inputs, 1), c->Dim(sequence_length, 0), &batch_size));
+
+      c->set_output(0, c->Matrix(c->Dim(inputs,1),c->Dim(inputs,0)));
+      c->set_output(1, c->Matrix(batch_size, 1));
+      return Status::OK();
+    });
 
 
 // custom TF op
@@ -184,7 +201,7 @@ public:
 	{
 		// input: TxBxC, float32
 		const Tensor& inputTensor = context->input(0);
-    // input: Bx1, uint32
+    // input: Bx1, int32
     const Tensor& seqLen = context->input(1);
     
 		const auto inputShape = inputTensor.shape();
@@ -197,19 +214,19 @@ public:
 		{
 			throw std::invalid_argument("the number of characters (chars) plus 1  must equal dimension 2 of the tensor (mat)");
 		}
-
-    if (!TensorShapeUtils::IsVector((*seqLen)->shape())) {
+    
+    if (!TensorShapeUtils::IsVector(seqLen.shape())) {
       throw std::invalid_argument("sequence length is not a vector");
+      }
+
+    if (!(maxB == seqLen.dim_size(0))) {
+      throw std::invalid_argument("length of sequence length is not batch size");
     }
 
-    if (!(maxB == (*seqLen)->dim_size(0))) {
-      throw std::invalid_argument("length of sequence length is not batch size.  ")
-    }
+    auto seqLen_t = seqLen.vec<int32>();
 
-    auto seqLen_t = (*seqLen)->vec<int32>();
-
-    for (int b = 0; b < maxB; ++b) {
-      if (!(seq_len_t(b) <= maxT)) {
+    for (unsigned int b = 0; b < maxB; ++b) {
+      if (seqLen_t(b)>= 0 && !(seqLen_t(b) <= maxT)) {
         throw std::invalid_argument("sequence length value out of bounds");
       }
     }
@@ -218,10 +235,14 @@ public:
 		// input tensor
 		const auto inputMapped = inputTensor.tensor<float, 3>();
 
-		// output: BxT, int32
+		// output result: BxT, int32
 		Tensor* outputTensor = nullptr;
 		OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape({static_cast<int>(maxB), static_cast<int>(maxT)}), &outputTensor));
 		auto outputMapped = outputTensor->tensor<int32, 2>();
+
+		// output score: Bx1, float32
+		Tensor* scoreTensor = nullptr;
+		OP_REQUIRES_OK(context, context->allocate_output(1, TensorShape({static_cast<int>(maxB), static_cast<int>(1)}), &scoreTensor));
 
 #ifdef WBS_PARALLEL
 		// split work into number of threads
@@ -241,18 +262,22 @@ public:
 			w.join();
 		}
 #else
+    auto score_t = scoreTensor->matrix<float>();
+    score_t.setZero();
+
 		// go over all batch elements
 		for(size_t b = 0; b < maxB; ++b)
 		{
 			// wrapper around Tensor
-			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, seq_len_t(b), maxC);
+			MatrixTensor<decltype(inputMapped)> mat(inputMapped, b, seqLen_t(b), maxC);
 
 			// apply decoding algorithm to batch element 
 			const std::shared_ptr<Beam> bestBeam = wordBeamSearch(mat, m_beamWidth, m_lm, m_lmType);
 			const std::vector<uint32_t> decoded = bestBeam->getText();
-			LOG(INFO) << "Best beam score: " << bestBeam->getTotalProb();
+			//LOG(INFO) << "Best beam " << b << " score: " << bestBeam->getTotalProb();
 			// write to output tensor
 			fillResult(decoded, outputMapped, b, maxT, maxC);
+      score_t(b,0) = bestBeam->getTotalProb();
 		}
 #endif
 	}

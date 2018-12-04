@@ -2,6 +2,13 @@
 
 **CTC decoder with dictionary and language model for TensorFlow | C++ implementation | Python implementation**
 
+## About this fork
+The original is by @githubharald. This fork is a slight modification incorporating the following changes:
+
+* In addition to the top decodings of the batch, the module op returns the score vector (a sequence probability) for each best decoding
+* Like the corresponding `tf.nn.ctc_beam_search_decoder`, the module op requires the sequence length for every batch element (preventing wasted computation and invalid decodings)
+* Adds tensor shape inference code (much like `tf.nn.ctc_beam_search_decoder`) for convenience
+
 ## A First Example
 
 The following code-skeleton gives a first impression of how to use the decoding algorithm with TensorFlow.
@@ -12,14 +19,15 @@ More details can be found in the Usage section.
 module=tf.load_op_library('TFWordBeamSearch.so') 
 
 # decode mat using automatically created dictionary and language model
-# corpus, chars, wordChars are (UTF8 encoded) strings and mat is a tensor (shape TxBxC)
+# corpus, chars, wordChars are (UTF8 encoded) strings
+# mat is a tensor (shape TxBxC) and seqLen is a vector (Bx1) with values in [0,T]
 beamWidth=25
 lmType='NGrams'
 lmSmoothing=0.01
-decode=module.word_beam_search(mat, beamWidth, lmType, lmSmoothing, corpus, chars, wordChars) 
+decode=module.word_beam_search(mat, seqLen, beamWidth, lmType, lmSmoothing, corpus, chars, wordChars) 
 
-# feed matrix (TxBxC), evaluate and output decoded text (BxT)
-res=sess.run(decode, { mat:feedMat }) 
+# feed matrix (TxBxC), sequence lengths (Bx1), evaluate and output decoded text (BxT) and score (Bx1)
+decoded,score=sess.run(decode, { mat:feedMat, seqlen:feedSeqlen }) 
 ```
 
 
@@ -143,10 +151,10 @@ assert(len(chars)+1==mat.shape[2])
 word_beam_search_module=tf.load_op_library('../cpp/proj/TFWordBeamSearch.so')
 
 # decode using the "Words" mode of word beam search
-decode=word_beam_search_module.word_beam_search(mat, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
+decode=word_beam_search_module.word_beam_search(mat, seqLen, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
 
 # feed matrix of shape TxBxC and evaluate TF graph
-res=sess.run(decode, { mat:feedMat })
+decoded,score=sess.run(decode, { mat:feedMat, seqLen:feedSeqLen })
 ```
 
 The output of the algorithm has shape BxT. 

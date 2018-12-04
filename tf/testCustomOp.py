@@ -5,7 +5,7 @@ import tensorflow as tf
 import codecs
 
 
-def testCustomOp(feedMat, corpus, chars, wordChars):
+def testCustomOp(feedMat, feedSeqLen, corpus, chars, wordChars):
 	"decode using word beam search. Result is tuple, first entry is label string, second entry is char string."
 
 	# TF session
@@ -17,14 +17,15 @@ def testCustomOp(feedMat, corpus, chars, wordChars):
 
 	# input with shape TxBxC
 	mat=tf.placeholder(tf.float32, shape=feedMat.shape)
-
+        seqLen = tf.placeholder(tf.int32,shape=feedSeqLen.shape)
 	# decode using the "Words" mode of word beam search with beam width set to 25 and add-k smoothing to 0.0
 	assert(len(chars)+1==mat.shape[2])
-	decode=word_beam_search_module.word_beam_search(mat, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
+	decode,score=word_beam_search_module.word_beam_search(mat, seqLen, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
 
-	# feed matrix of shape TxBxC and evaluate TF graph
-	res=sess.run(decode, { mat:feedMat })
-
+	# feed matrix of shape TxBxC,Bx1 and evaluate TF graph
+	result=sess.run([decode,score], { mat:feedMat, seqLen: feedSeqLen })
+        res = result[0]
+        print(result[1])
 	# result is string of labels terminated by blank (similar to C-strings) if shorter than T
 	blank=len(chars)
 	s=''
@@ -59,7 +60,8 @@ def testMiniExample():
 	chars='ab ' # the first three characters which occur in the matrix (in this ordering)
 	wordChars='ab' # whitespace not included which serves as word-separating character
 	mat=np.array([[[0.9, 0.1, 0.0, 0.0]],[[0.0, 0.0, 0.0, 1.0]],[[0.6, 0.4, 0.0, 0.0]]]) # 3 time-steps and 4 characters per time time ("a", "b", " ", blank)
-	res=testCustomOp(mat, corpus, chars, wordChars)
+        seqLen = np.array([mat.shape[0]],dtype=np.int32)
+	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Mini example:')
 	print('Label string: ',res[0])
@@ -73,7 +75,8 @@ def testRealExample():
 	chars=codecs.open(dataPath+'chars.txt', 'r', 'utf8').read()
 	wordChars=codecs.open(dataPath+'wordChars.txt', 'r', 'utf8').read()
 	mat=loadMat(dataPath+'mat_2.csv')
-	res=testCustomOp(mat, corpus, chars, wordChars)
+        seqLen = np.array([mat.shape[0]],dtype=np.int32)
+	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Real example:')
 	print('Label string: ',res[0])
@@ -84,5 +87,3 @@ if __name__=='__main__':
 	# test custom op
 	testMiniExample()
 	testRealExample()
-
-

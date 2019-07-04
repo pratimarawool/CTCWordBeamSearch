@@ -9,7 +9,7 @@ def testCustomOp(feedMat, feedSeqLen, corpus, chars, wordChars):
 	"decode using word beam search. Result is tuple, first entry is label string, second entry is char string."
 
 	# TF session
-	sess=tf.Session()
+	sess = tf.Session()
 	sess.run(tf.global_variables_initializer())
 
 	# load custom TF op
@@ -19,39 +19,38 @@ def testCustomOp(feedMat, feedSeqLen, corpus, chars, wordChars):
 	mat=tf.placeholder(tf.float32, shape=feedMat.shape)
         seqLen = tf.placeholder(tf.int32,shape=feedSeqLen.shape)
 	# decode using the "Words" mode of word beam search with beam width set to 25 and add-k smoothing to 0.0
-	assert(len(chars)+1==mat.shape[2])
+	assert len(chars) + 1 == mat.shape[2]
 	decode,score=word_beam_search_module.word_beam_search(mat, seqLen, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
-
 	# feed matrix of shape TxBxC,Bx1 and evaluate TF graph
 	result=sess.run([decode,score], { mat:feedMat, seqLen: feedSeqLen })
         res = result[0]
         print(result[1])
 	# result is string of labels terminated by blank (similar to C-strings) if shorter than T
-	blank=len(chars)
-	s=''
+	blank = len(chars)
+	s = ''
 	for label in res[0]:
-		if label==blank:
+		if label == blank:
 			break
-		s+=chars[label] # map label to char
+		s += chars[label] # map label to char
 	return (res[0], s)
 
 
 def loadMat(fn):
 	"load matrix from csv and apply softmax"
 
-	mat=np.genfromtxt(fn, delimiter=';')[:,:-1] #load matrix from file
-	maxT,_=mat.shape # dim0=t, dim1=c
+	mat = np.genfromtxt(fn, delimiter=';')[:,:-1] #load matrix from file
+	maxT, _ = mat.shape # dim0=t, dim1=c
 	
 	# apply softmax
-	res=np.zeros(mat.shape)
+	res = np.zeros(mat.shape)
 	for t in range(maxT):
-		y=mat[t,:]
-		e=np.exp(y)
-		s=np.sum(e)
-		res[t,:]=e/s
+		y = mat[t, :]
+		e = np.exp(y)
+		s = np.sum(e)
+		res[t, :] = e / s
 
 	# expand to TxBxC
-	return np.expand_dims(res,1)
+	return np.expand_dims(res, 1)
 
 
 def testMiniExample():
@@ -64,8 +63,9 @@ def testMiniExample():
 	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Mini example:')
-	print('Label string: ',res[0])
-	print('Char string:', '"'+res[1]+'"')
+	print('Label string:', res[0])
+	print('Char string:', '"' + res[1] + '"')
+	assert res[1] == 'ba'
 
 
 def testRealExample():
@@ -79,8 +79,9 @@ def testRealExample():
 	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Real example:')
-	print('Label string: ',res[0])
-	print('Char string:', '"'+res[1]+'"')
+	print('Label string:', res[0])
+	print('Char string:', '"' + res[1] + '"')
+	assert res[1] == 'submitt both mental and corporeal, is far beyond any idea'
 
 
 if __name__=='__main__':

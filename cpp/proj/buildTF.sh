@@ -1,10 +1,13 @@
 #!/bin/bash
 
 CXX=g++-6
-PYTHON=python
+PYTHON=python # e.g. could be python2.7 or python3 to be explicit
 
-#MY_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0
 MY_FLAGS=
+# See https://github.com/githubharald/CTCWordBeamSearch/issues/12 and
+# https://www.tensorflow.org/guide/extend/op#compile_the_op_using_your_system_compiler_tensorflow_binary_installation
+#MY_FLAGS=-D_GLIBCXX_USE_CXX11_ABI=0
+
 
 # check if parallel decoding is enabled: specify PARALLEL NUMTHREADS, e.g. PARALLEL 8
 if [ "$1" == "PARALLEL" ]; then
@@ -50,7 +53,7 @@ elif [ "$TF_VERSION" == "1.4.0" ]; then
 
 	$CXX -Wall -O2 --std=c++11 -shared -o TFWordBeamSearch.so ../src/TFWordBeamSearch.cpp ../src/main.cpp ../src/WordBeamSearch.cpp ../src/PrefixTree.cpp ../src/Metrics.cpp ../src/MatrixCSV.cpp ../src/LanguageModel.cpp ../src/DataLoader.cpp ../src/Beam.cpp $MY_FLAGS $PARALLEL -fPIC -I$TF_INC -I$TF_INC/external/nsync/public -L$TF_LIB -ltensorflow_framework
 
-# all other versions (tested for: TF1.5 and TF1.6)
+# all other versions (tested for: TF1.5 and TF1.6 and TF1.12)
 else
 	echo "Compiling for TF 1.5.0 or 1.6.0 now ..."
 

@@ -3,11 +3,17 @@
 **CTC decoder with dictionary and language model for TensorFlow | C++ implementation | Python implementation**
 
 ## About this fork
-The original is by @githubharald. This fork is a slight modification incorporating the following changes:
+The original is by @githubharald. This fork branch is a slight modification incorporating the following changes:
 
 * In addition to the top decodings of the batch, the module op returns the score vector (a sequence probability) for each best decoding
 * Like the corresponding `tf.nn.ctc_beam_search_decoder`, the module op requires the sequence length for every batch element (preventing wasted computation and invalid decodings)
 * Adds tensor shape inference code (much like `tf.nn.ctc_beam_search_decoder`) for convenience
+
+To compile for a specific version of python (including Python 2), use
+
+```bash
+git merge python2
+```
 
 ## A First Example
 
@@ -267,7 +273,10 @@ As a rule of thumb, a value between 0 and 1 should be suitable and can be tuned 
 
 ## FAQ
 
-1. I want to use Python 2.7 instead of Python 3: Python 2.7 is not supported. However, it should still be possible to use Python 2.7: change all occurrences of "python3" to "python2" in the build script `buildTF.sh` in the directory `cpp/proj/`.
+1. I want to use Python 2.7 instead of Python 3: Python 2.7 is not supported. However, it should still be possible to use Python 2.7: change all occurrences of "python3" to "python2" in the build script `buildTF.sh` in the directory `cpp/proj/`. Try
+```bash
+git merge python2
+```
 2. I get an "undefined symbol" error when dynamically loading the custom operation into TF: the build script assumes the situation that a pre-built TF is used, while a g++ compiler with version >=5 is used to compile the custom operation. In other cases it might be necessary to modify the build script, e.g. remove the define `-D_GLIBCXX_USE_CXX11_ABI=0`. For more information see the [TensorFlow documentation](https://www.tensorflow.org/extend/adding_an_op) or [this issue](https://github.com/githubharald/CTCWordBeamSearch/issues/12).
 3. What is the difference between the chars and the wordChars parameter: the algorithm has to know which characters form a word for two reasons. First, it has to extract words from the corpus. Second, the decoding depends on the type of character: the algorithm constrains words to those contained in a dictionary while it allows arbitrary non-word-character strings. For both tasks the algorithm has to know from which characters words can be built. There is no automatic way to distinguish between word-characters and non-word-characters (like simply using the regular expression r"\w+"): to give an example, we might or might not want the character ' (as used in "don't") to be a word-character.
 4. Why is 0<len(wordChars)<len(chars) required when recognizing multiple words like text-lines: there must be at least one character separating words (like whitespace, comma, ...).

@@ -2,6 +2,8 @@
 
 **CTC decoder with dictionary and language model for TensorFlow | C++ implementation | Python implementation**
 
+See README in branch `var_seq_len` for details on updates for variable sequence lengths in this fork.
+
 ## A First Example
 
 The following code-skeleton gives a first impression of how to use the decoding algorithm with TensorFlow (TF).

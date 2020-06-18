@@ -17,14 +17,14 @@ def testCustomOp(feedMat, feedSeqLen, corpus, chars, wordChars):
 
 	# input with shape TxBxC
 	mat=tf.placeholder(tf.float32, shape=feedMat.shape)
-        seqLen = tf.placeholder(tf.int32,shape=feedSeqLen.shape)
+	seqLen = tf.placeholder(tf.int32,shape=feedSeqLen.shape)
 	# decode using the "Words" mode of word beam search with beam width set to 25 and add-k smoothing to 0.0
 	assert len(chars) + 1 == mat.shape[2]
 	decode,score=word_beam_search_module.word_beam_search(mat, seqLen, 25, 'Words', 0.0, corpus.encode('utf8'), chars.encode('utf8'), wordChars.encode('utf8'))
 	# feed matrix of shape TxBxC,Bx1 and evaluate TF graph
 	result=sess.run([decode,score], { mat:feedMat, seqLen: feedSeqLen })
-        res = result[0]
-        print(result[1])
+	res = result[0]
+	print(result[1])
 	# result is string of labels terminated by blank (similar to C-strings) if shorter than T
 	blank = len(chars)
 	s = ''
@@ -59,7 +59,7 @@ def testMiniExample():
 	chars='ab ' # the first three characters which occur in the matrix (in this ordering)
 	wordChars='ab' # whitespace not included which serves as word-separating character
 	mat=np.array([[[0.9, 0.1, 0.0, 0.0]],[[0.0, 0.0, 0.0, 1.0]],[[0.6, 0.4, 0.0, 0.0]]]) # 3 time-steps and 4 characters per time time ("a", "b", " ", blank)
-        seqLen = np.array([mat.shape[0]],dtype=np.int32)
+	seqLen = np.array([mat.shape[0]],dtype=np.int32)
 	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Mini example:')
@@ -75,7 +75,7 @@ def testRealExample():
 	chars=codecs.open(dataPath+'chars.txt', 'r', 'utf8').read()
 	wordChars=codecs.open(dataPath+'wordChars.txt', 'r', 'utf8').read()
 	mat=loadMat(dataPath+'mat_2.csv')
-        seqLen = np.array([mat.shape[0]],dtype=np.int32)
+	seqLen = np.array([mat.shape[0]],dtype=np.int32)
 	res=testCustomOp(mat, seqLen, corpus, chars, wordChars)
 	print('')
 	print('Real example:')
